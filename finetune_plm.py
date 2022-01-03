@@ -23,28 +23,6 @@ from utils.models.bert_bilstm import BERT_BiLSTM
 from utils.models.bert_bilstm_crf import BERT_BiLSTM_CRF
 
 
-class Arguments():
-    '''This is for debugging in window'''
-    def __init__(self):
-
-        self.model_type = 'bert_bilstm'
-        self.model_fn = './simple_ntc/models/bert_crf.pth'
-
-        self.train_fn = './data/중견연구_CoNLL2003_final.txt'
-        self.pretrained_model_name = 'bert-base-uncased'
-
-        self.gpu_id = -1
-
-        self.batch_size = 16
-        self.n_epochs = 8
-
-        self.lr = 5e-5
-        self.warmup_ratio = 0.1
-        self.adam_epsilon = 1e-8
-        self.use_radam = False
-
-        self.max_length = 64
-
 def define_argparser():
     p = argparse.ArgumentParser()
 
@@ -313,7 +291,6 @@ def main(config):
 
 
 if __name__ == '__main__':
-    config_for_debug = Arguments()
-    main(config_for_debug)
-    #config = define_argparser()
-    #main(config)
+
+    config = define_argparser()
+    main(config)
