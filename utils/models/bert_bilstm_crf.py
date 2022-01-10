@@ -13,7 +13,7 @@ class BERT_BiLSTM_CRF(nn.Module):
             config,
             num_labels,
             lstm_hidden_size=256,
-            n_layers=1,
+            n_layers=2,
             bert_dropout_p=0.1,
             bilstm_dropout_p=0.1
     ):
@@ -51,13 +51,7 @@ class BERT_BiLSTM_CRF(nn.Module):
             self,
             input_ids=None,
             attention_mask=None,
-            token_type_ids=None,
             labels=None,
-            position_ids=None,
-            head_mask=None,
-            inputs_embeds=None,
-            output_attentions=None,
-            output_hidden_states=None,
             return_dict=None,
     ):
 
@@ -86,7 +80,8 @@ class BERT_BiLSTM_CRF(nn.Module):
             # loss is a negative log-likelihood
             loss = -1 * log_likelihood
 
-        output = (sequence_of_tags,)
-        return ((loss,) + output) if loss is not None else output
+        if not return_dict:
+            output = (sequence_of_tags,)
+            return ((loss,) + output) if loss is not None else output
 
 
