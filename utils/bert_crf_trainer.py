@@ -38,10 +38,6 @@ class CrfTrainer:
 
         for epoch in range(self.config.n_epochs):
 
-            # ========================================
-            #               Training
-            # ========================================
-
             # Put the model into training mode.
             model.train()
             # Reset the total loss for this epoch.
@@ -53,17 +49,14 @@ class CrfTrainer:
                 attention_mask = mini_batch['attention_mask']
                 attention_mask = attention_mask.to(device)
 
-
                 # reset the gradients of all model parameters
                 optimizer.zero_grad()
 
                 # Take feed-forward
-                outputs = model(
-                    input_ids,
-                    token_type_ids=None,
-                    attention_mask=attention_mask,
-                    labels=labels
-                )
+                outputs = model(input_ids,
+                                attention_mask=attention_mask,
+                                labels=labels)
+
                 loss, logits = outputs[0], outputs[1]
 
                 # Perform a backward pass to calculate the gradients.
@@ -86,52 +79,50 @@ class CrfTrainer:
                 avg_tr_loss
             ))
 
-            # ========================================
-            #               Validation
-            # ========================================
 
             # Put the model into evaluation mode
             model.eval()
 
             total_val_loss, total_val_accuracy = 0, 0
-            true_tags, pred_tags = [], []
+            preds, true_labels = [], []
             for step, mini_batch in enumerate(valid_loader):
                 input_ids, labels = mini_batch['input_ids'], mini_batch['labels']
                 input_ids, labels = input_ids.to(device), labels.to(device)
                 attention_mask = mini_batch['attention_mask']
                 attention_mask = attention_mask.to(device)
-                _ = mini_batch['subwords_start_idxs']
 
                 # Telling the model not to compute or store gradients,
                 with torch.no_grad():
                     # Forward pass
-                    outputs = model(
-                        input_ids,
-                        token_type_ids=None,
-                        attention_mask=attention_mask,
-                        labels=labels
-                    )
+                    outputs = model(input_ids,
+                                    attention_mask=attention_mask,
+                                    labels=labels)
+
                     loss, sequence_of_tags = outputs[0], outputs[1]
 
                 # Calculate the accuracy for this batch of test sentences.
                 total_val_loss += loss.mean().item()
 
                 # Move logits and labels to CPU
-                label_ids = labels.to('cpu')
-                sequence_of_tags = sequence_of_tags.to('cpu')
+                labels = labels.to('cpu').numpy()
+                sequence_of_tags = sequence_of_tags.to('cpu').numpy()
 
-                for p, t in zip(sequence_of_tags.tolist(), label_ids.tolist()):
-                    pred_tag = []
-                    for p_i, t_i in zip(p, t):
-                        if index_to_tag[t_i] != "PAD":
-                            pred_tag.append(index_to_tag[p_i])
-                    pred_tags.append(pred_tag)
-                for t in label_ids.tolist():
-                    true_tag = []
-                    for t_i in t:
-                        if index_to_tag[t_i] != "PAD":
-                            true_tag.append(index_to_tag[t_i])
-                    true_tags.append(true_tag)
+                for preds_per_sent in sequence_of_tags:
+                    preds += [preds_per_sent]
+                for labels_per_sent in labels:
+                    true_labels += [labels_per_sent]
+
+            pred_tags, true_tags = [], []
+            for preds_per_sent, true_labels_per_sent in zip(preds, true_labels):
+
+                pred_tags_per_sent, true_tags_per_sent = [], []
+                for pred, true_label in zip(preds_per_sent, true_labels_per_sent):
+                    if index_to_tag[pred] != "PAD":
+                        pred_tags_per_sent.append(index_to_tag[pred])
+                        true_tags_per_sent.append(index_to_tag[true_label])
+
+                pred_tags.append(pred_tags_per_sent)
+                true_tags.append(true_tags_per_sent)
 
             avg_val_loss = total_val_loss / len(valid_loader)
             avg_val_acc = accuracy_score(pred_tags, true_tags)
@@ -146,6 +137,7 @@ class CrfTrainer:
                 self.best_loss,
             ))
 
+        print()
         print(self.classification_report)
         model.load_state_dict(self.best_model)
 
