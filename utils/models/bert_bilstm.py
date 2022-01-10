@@ -9,7 +9,7 @@ class BERT_BiLSTM(nn.Module):
             config,
             num_labels,
             lstm_hidden_size=256,
-            n_layers=1,
+            n_layers=2,
             bert_dropout_p=0.1,
             bilstm_dropout_p=0.1
     ):
@@ -44,13 +44,7 @@ class BERT_BiLSTM(nn.Module):
             self,
             input_ids=None,
             attention_mask=None,
-            token_type_ids=None,
-            position_ids=None,
-            head_mask=None,
-            inputs_embeds=None,
             labels=None,
-            output_attentions=None,
-            output_hidden_states=None,
             return_dict=None,
     ):
 
