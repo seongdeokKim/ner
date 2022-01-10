@@ -39,10 +39,6 @@ class Trainer:
 
         for epoch in range(self.config.n_epochs):
 
-            # ========================================
-            #               Training
-            # ========================================
-
             # Put the model into train mode
             model.train()
 
@@ -57,12 +53,10 @@ class Trainer:
                 optimizer.zero_grad()
 
                 # Take feed-forward
-                outputs = model(
-                    input_ids,
-                    token_type_ids=None,
-                    attention_mask=attention_mask,
-                    labels=labels
-                )
+                outputs = model(input_ids,
+                                attention_mask=attention_mask,
+                                labels=labels)
+
                 loss, logits = outputs[0], outputs[1]
 
                 # Perform a backward pass to calculate the gradients.
@@ -84,34 +78,24 @@ class Trainer:
                 avg_tr_loss
             ))
 
-            #loss_values.append(avg_train_loss)
-
-            # ========================================
-            #               Validation
-            # ========================================
-
             # Put the model into evaluation mode
             model.eval()
 
             # Reset the validation loss for this epoch.
             total_val_loss, total_val_accuracy = 0, 0
             preds, true_labels = [], []
-
             for step, mini_batch in enumerate(valid_loader):
                 input_ids, labels = mini_batch['input_ids'], mini_batch['labels']
                 input_ids, labels = input_ids.to(device), labels.to(device)
                 attention_mask = mini_batch['attention_mask']
                 attention_mask = attention_mask.to(device)
-                _ = mini_batch['subwords_start_idxs']
 
                 # Telling the model not to compute or store gradients,
                 with torch.no_grad():
-                    outputs = model(
-                        input_ids,
-                        token_type_ids=None,
-                        attention_mask=attention_mask,
-                        labels=labels
-                    )
+                    outputs = model(input_ids,
+                                    attention_mask=attention_mask,
+                                    labels=labels)
+
                     loss, logits = outputs[0], outputs[1]
 
                 # Calculate the accuracy for this batch of test sentences.
@@ -119,29 +103,26 @@ class Trainer:
 
                 # Move logits and labels to CPU
                 logits = logits.detach().cpu().numpy()
-                label_ids = labels.to('cpu').numpy()
+                labels = labels.to('cpu').numpy()
 
-                preds.extend([list(p) for p in np.argmax(logits, axis=2)])
-                true_labels.extend(label_ids)
-
-            avg_val_loss = total_val_loss / len(valid_loader)
-
+                for preds_per_sent in np.argmax(logits, axis=2):
+                    preds += [preds_per_sent]
+                for labels_per_sent in labels:
+                    true_labels += [labels_per_sent]
 
             pred_tags, true_tags = [], []
-            for p, t in zip(preds, true_labels):
-                pred_tag = []
-                for p_i, t_i in zip(p, t):
-                    if index_to_tag[t_i] != "PAD":
-                        pred_tag.append(index_to_tag[p_i])
-                pred_tags.append(pred_tag)
+            for preds_per_sent, true_labels_per_sent in zip(preds, true_labels):
 
-            for t in true_labels:
-                true_tag = []
-                for t_i in t:
-                    if index_to_tag[t_i] != "PAD":
-                        true_tag.append(index_to_tag[t_i])
-                true_tags.append(true_tag)
+                pred_tags_per_sent, true_tags_per_sent = [], []
+                for pred, true_label in zip(preds_per_sent, true_labels_per_sent):
+                    if index_to_tag[pred] != "PAD":
+                        pred_tags_per_sent.append(index_to_tag[pred])
+                        true_tags_per_sent.append(index_to_tag[true_label])
 
+                pred_tags.append(pred_tags_per_sent)
+                true_tags.append(true_tags_per_sent)
+
+            avg_val_loss = total_val_loss / len(valid_loader)
             avg_val_acc = accuracy_score(pred_tags, true_tags)
             avg_val_f1_score = f1_score(pred_tags, true_tags)
 
@@ -154,6 +135,7 @@ class Trainer:
                 self.best_loss,
             ))
 
+        print()
         print(self.classification_report)
         model.load_state_dict(self.best_model)
 
