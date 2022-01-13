@@ -101,13 +101,17 @@ def get_loaders(config, tokenizer):
         BertDataset(sentences[:idx], labels[:idx]),
         batch_size=config.batch_size,
         shuffle=True,
-        collate_fn=TokenizerWrapper(tokenizer, config.max_length, tag_to_index).collate,
+        collate_fn=TokenizerWrapper(tokenizer,
+                                    config.max_length,
+                                    tag_to_index).generate_for_train,
     )
     valid_loader = DataLoader(
         BertDataset(sentences[idx:], labels[idx:]),
         batch_size=config.batch_size,
         shuffle=True,
-        collate_fn=TokenizerWrapper(tokenizer, config.max_length, tag_to_index).collate,
+        collate_fn=TokenizerWrapper(tokenizer,
+                                    config.max_length,
+                                    tag_to_index).generate_for_train,
     )
 
     return train_loader, valid_loader, index_to_tag
