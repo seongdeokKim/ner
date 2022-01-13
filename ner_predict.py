@@ -5,8 +5,8 @@ import torch
 import numpy as np
 
 from ner_finetune import get_model
-from utils.data_loader import TokenizerForInference, PipelineForBPEtoNGAM
-
+from utils.data_loader import TokenizerWrapper
+from utils.transform_bpe_to_nram import PipelineForBPEtoNGAM
 
 
 def define_argparser():
@@ -45,7 +45,6 @@ def main(config):
 
     train_config = saved_data['config']
     best_model = saved_data['model']
-    loaded_tokenizer = saved_data['tokenizer']
     index_to_tag = saved_data['index_to_tag']
 
     lines = read_text()
@@ -53,9 +52,11 @@ def main(config):
     with torch.no_grad():
         # Declare model and load fine-tuned weights.
         #tokenizer = AutoTokenizer.from_pretrained(train_config.pretrained_model_name)
-        tokenizer = TokenizerForInference(loaded_tokenizer,
-                                          train_config.max_length,
-                                          index_to_tag)
+        loaded_tokenizer = saved_data['tokenizer']
+
+        tokenizer = TokenizerWrapper(loaded_tokenizer,
+                                     train_config.max_length,
+                                     index_to_tag)
 
         pipeline = PipelineForBPEtoNGAM(loaded_tokenizer,
                                         index_to_tag)
@@ -63,18 +64,19 @@ def main(config):
         model = get_model(train_config, index_to_tag)
         model.load_state_dict(best_model)
 
-        if config.gpu_id >= 0:
+        if config.gpu_id > -1:
             model.cuda(config.gpu_id)
         device = next(model.parameters()).device
-
-        bpe_token_ids, preds = [], []
-        bpe_token_start_idxs = []
         
         # Turn-on evaluation mode.
         model.eval()
+
+        bpe_token_ids, preds = [], []
+        bpe_token_start_idxs = []
         for idx in range(0, len(lines), config.batch_size):
 
-            mini_batch = tokenizer.tokenize(lines[idx:idx + config.batch_size])
+            mini_batch = tokenizer.generate_for_predict(lines[idx:idx + config.batch_size])
+
             input_ids = mini_batch['input_ids']
             input_ids = input_ids.to(device)
             attention_mask = mini_batch['attention_mask']
@@ -117,7 +119,6 @@ def main(config):
                               bpe_token_ids,
                               bpe_token_start_idxs)
 
-
         for i in range(len(lines)):
             sys.stdout.write('{}\t{}\t{}\t{}\t{}\n'.format(
                 "|".join(result["ngram_tokens"][i]),
@@ -126,7 +127,6 @@ def main(config):
                 result["preprocessed_sents"][i],
                 lines[i]
             ))
-
 
 
 if __name__ == '__main__':
